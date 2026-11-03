@@ -1,0 +1,80 @@
+{
+  "system": {
+    "hostname": "archlinux",
+    "timezone": "Asia/Manila",
+    "locale": "en_US.UTF-8",
+    "keymap": "us"
+  },
+  "storage": {
+    "mode": "clean_install",
+    "device": "/dev/sda",
+    "wipe": true,
+    "efi_size": "1024M",
+    "swap_size": "4G",
+    "encryption": {
+      "enabled": false
+    },
+    "lvm": {
+      "enabled": false
+    },
+    "filesystem": {
+      "type": "ext4",
+      "mount_options": ["noatime"]
+    }
+  },
+  "pacman": {
+    "parallel_downloads": 5,
+    "multilib": true,
+    "color": true
+  },
+  "mirrors": {
+    "reflector": true,
+    "countries": ["Worldwide"],
+    "protocol": "https",
+    "latest": 10,
+    "sort": "rate"
+  },
+  "packages": {
+    "base": [
+      "base",
+      "base-devel",
+      "linux",
+      "linux-firmware",
+      "linux-headers"
+    ],
+    "ucode": "auto",
+    "system": [
+      "networkmanager",
+      "git",
+      "vim",
+      "sudo",
+      "openssh",
+      "curl"
+    ],
+    "additional": [
+      "htop"
+    ]
+  },
+  "bootloader": {
+    "type": "systemd-boot"
+  },
+  "users": {
+    "root_password": null,
+    "accounts": [
+      {
+        "username": "archuser",
+        "password": null,
+        "groups": ["wheel", "storage", "power"],
+        "shell": "/bin/bash",
+        "sudo_nopasswd": false
+      }
+    ]
+  },
+  "services": [
+    "NetworkManager"
+  ],
+  "post_install": {
+    "commands": []
+  }
+}
+

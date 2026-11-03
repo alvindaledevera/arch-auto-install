@@ -1,0 +1,91 @@
+{
+  "system": {
+    "hostname": "arch-lvm",
+    "timezone": "Asia/Manila",
+    "locale": "en_US.UTF-8",
+    "keymap": "us"
+  },
+  "storage": {
+    "mode": "clean_install",
+    "device": "/dev/sda",
+    "wipe": true,
+    "efi_size": "1024M",
+    "swap_size": "none",
+    "encryption": {
+      "enabled": true,
+      "type": "luks2",
+      "device_name": "cryptroot",
+      "password": null
+    },
+    "lvm": {
+      "enabled": true,
+      "vg_name": "vg0",
+      "volumes": [
+        { "name": "swap", "size": "8G", "fs": "swap" },
+        { "name": "root", "size": "60G", "fs": "ext4", "mount": "/" },
+        { "name": "home", "size": "remainder", "fs": "ext4", "mount": "/home" }
+      ]
+    },
+    "filesystem": {
+      "type": "ext4",
+      "mount_options": ["noatime"]
+    }
+  },
+  "pacman": {
+    "parallel_downloads": 5,
+    "multilib": true,
+    "color": true
+  },
+  "mirrors": {
+    "reflector": true,
+    "countries": ["Worldwide"],
+    "protocol": "https",
+    "latest": 10,
+    "sort": "rate"
+  },
+  "packages": {
+    "base": [
+      "base",
+      "base-devel",
+      "linux",
+      "linux-firmware",
+      "linux-headers"
+    ],
+    "ucode": "auto",
+    "system": [
+      "networkmanager",
+      "git",
+      "vim",
+      "sudo",
+      "openssh",
+      "curl"
+    ],
+    "additional": [
+      "htop",
+      "tmux"
+    ]
+  },
+  "bootloader": {
+    "type": "grub"
+  },
+  "users": {
+    "root_password": null,
+    "accounts": [
+      {
+        "username": "archuser",
+        "password": null,
+        "groups": ["wheel", "storage", "power"],
+        "shell": "/bin/bash",
+        "sudo_nopasswd": false
+      }
+    ]
+  },
+  "services": [
+    "NetworkManager",
+    "sshd"
+  ],
+  "post_install": {
+    "commands": []
+  }
+}
+

@@ -1,0 +1,91 @@
+{
+  "system": {
+    "hostname": "arch-btrfs",
+    "timezone": "Asia/Manila",
+    "locale": "en_US.UTF-8",
+    "keymap": "us"
+  },
+  "storage": {
+    "mode": "clean_install",
+    "device": "/dev/nvme0n1",
+    "wipe": true,
+    "efi_size": "1024M",
+    "swap_size": "none",
+    "encryption": {
+      "enabled": true,
+      "type": "luks2",
+      "device_name": "cryptroot",
+      "password": null
+    },
+    "filesystem": {
+      "type": "btrfs",
+      "btrfs_subvolumes": [
+        { "name": "@", "mount": "/" },
+        { "name": "@home", "mount": "/home" },
+        { "name": "@snapshots", "mount": "/.snapshots" },
+        { "name": "@var_log", "mount": "/var/log" }
+      ],
+      "mount_options": ["noatime", "compress=zstd:1"]
+    }
+  },
+  "pacman": {
+    "parallel_downloads": 5,
+    "multilib": true,
+    "color": true
+  },
+  "mirrors": {
+    "reflector": true,
+    "countries": ["Worldwide"],
+    "protocol": "https",
+    "latest": 10,
+    "sort": "rate"
+  },
+  "packages": {
+    "base": [
+      "base",
+      "base-devel",
+      "linux",
+      "linux-firmware",
+      "linux-headers"
+    ],
+    "ucode": "auto",
+    "system": [
+      "networkmanager",
+      "git",
+      "vim",
+      "sudo",
+      "openssh",
+      "curl",
+      "zsh"
+    ],
+    "additional": [
+      "docker",
+      "docker-compose",
+      "htop",
+      "neovim"
+    ]
+  },
+  "bootloader": {
+    "type": "systemd-boot"
+  },
+  "users": {
+    "root_password": null,
+    "accounts": [
+      {
+        "username": "archuser",
+        "password": null,
+        "groups": ["wheel", "storage", "power", "docker"],
+        "shell": "/bin/zsh",
+        "sudo_nopasswd": false
+      }
+    ]
+  },
+  "services": [
+    "NetworkManager",
+    "docker"
+  ],
+  "post_install": {
+    "commands": []
+  }
+}
+

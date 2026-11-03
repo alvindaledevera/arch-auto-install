@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# User configurations with sensitive passwords
+config.json
+
+# Logs
+*.log
+
