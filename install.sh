@@ -23,12 +23,12 @@ else
 fi
 
 # 2. Source modular libraries
-source "$SCRIPT_DIR/lib/ui.sh"
-source "$SCRIPT_DIR/lib/preinstall.sh"
-source "$SCRIPT_DIR/lib/disk.sh"
-source "$SCRIPT_DIR/lib/pacstrap.sh"
-source "$SCRIPT_DIR/lib/system.sh"
-source "$SCRIPT_DIR/lib/users.sh"
+source "$SCRIPT_DIR/lib/01_ui.sh"
+source "$SCRIPT_DIR/lib/02_preinstall.sh"
+source "$SCRIPT_DIR/lib/03_disk.sh"
+source "$SCRIPT_DIR/lib/04_pacstrap.sh"
+source "$SCRIPT_DIR/lib/05_system.sh"
+source "$SCRIPT_DIR/lib/06_users.sh"
 source "$SCRIPT_DIR/lib/bootloader.sh"
 
 install_system_pipeline() {

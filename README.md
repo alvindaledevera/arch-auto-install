@@ -131,7 +131,7 @@ Unmounts `/mnt` safely and reboots into your fresh Arch Linux operating system!
 | `KEYMAP` | `"us"` | Console keyboard layout. |
 | `FS_TYPE` | `"btrfs"` | Target filesystem: `"btrfs"` or `"ext4"`. |
 | `SEPARATE_HOME` | `false` | `false` = combined in root (default), `true` = separate `/home`. |
-| `ROOT_SIZE` | `"50G"` | Size of root partition/LV if separate `/home` is used. |
+| `ROOT_SIZE` | `"80G"` | Size of root partition/LV if separate `/home` is used. |
 | `LUKS_ENABLED` | `false` | Enable full disk/partition encryption. |
 | `LVM_ENABLED` | `false` | Enable Logical Volume Management. |
 | `BOOTLOADER` | `"systemd-boot"` | `"systemd-boot"` (fastest for UEFI) or `"grub"`. |
