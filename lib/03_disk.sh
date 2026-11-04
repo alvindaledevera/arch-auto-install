@@ -58,7 +58,7 @@ disk_run_cfdisk() {
 
 disk_setup_luks() {
     local parts_args
-    read -r -a parts_args <<<(get_parts_menu_items)
+    read -r -a parts_args < <(get_parts_menu_items)
 
     if [ ${#parts_args[@]} -eq 0 ]; then
         msgbox "No Partitions" "Please partition your disk using cfdisk first."
