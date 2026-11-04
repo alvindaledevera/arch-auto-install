@@ -29,7 +29,7 @@ source "$SCRIPT_DIR/lib/03_disk.sh"
 source "$SCRIPT_DIR/lib/04_pacstrap.sh"
 source "$SCRIPT_DIR/lib/05_system.sh"
 source "$SCRIPT_DIR/lib/06_users.sh"
-source "$SCRIPT_DIR/lib/bootloader.sh"
+source "$SCRIPT_DIR/lib/07_bootloader.sh"
 
 install_system_pipeline() {
     step_header "Starting System Installation"
