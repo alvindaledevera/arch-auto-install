@@ -16,6 +16,7 @@ from lib.executor import (
 )
 from lib.config import load_config, resolve_passwords, ConfigError
 from lib.disk import setup_disk, get_swap_config
+from lib.tui import TUI, run_cfdisk_wizard, run_lvm_wizard, run_format_and_mount_wizard
 from lib.pacman import configure_pacman, update_mirrors, install_base_packages
 from lib.system import generate_fstab, configure_system
 from lib.users import configure_users
@@ -50,9 +51,11 @@ def confirm_installation(cfg: Dict[str, Any], unattended: bool):
     if mode == "clean_install":
         dev = storage.get("device")
         has_swap, swap_size = get_swap_config(storage)
+        has_sep = storage.get("separate_home", {}).get("enabled", False)
         print(f" Target Disk:     {dev} {RED}(ENTIRE DISK WILL BE WIPED!){RESET}")
         print(f" EFI Size:        {storage.get('efi_size')}")
         print(f" Swap:            {swap_size if has_swap else 'Disabled (No swap partition)'}")
+        print(f" Root & Home:     {'Separate /home partition' if has_sep else 'Combined (Magkasama sa iisang partition)'}")
         print(f" Filesystem:      {storage.get('filesystem', {}).get('type')}")
         print(f" Encryption:      {storage.get('encryption', {}).get('enabled')}")
         print(f" LVM:             {storage.get('lvm', {}).get('enabled')}")
@@ -122,6 +125,33 @@ def main():
 
     # Step 3: Resolve passwords (prompt interactively if null/empty)
     resolve_passwords(cfg, interactive=not args.unattended)
+
+    # Step 3.5: Interactive TUI Setup Wizard (cfdisk, LVM, Filesystem/Mounts)
+    if not args.unattended:
+        tui = TUI()
+        while True:
+            choice = tui.menu(
+                "Arch Linux Installation Wizard",
+                "Choose a setup step or proceed to install:",
+                [
+                    ("1_cfdisk", "Partition Disk (cfdisk)"),
+                    ("2_lvm", "LVM Setup (Volume Group & Logical Volumes)"),
+                    ("3_format", "Filesystem & Mount Points (Btrfs/Ext4)"),
+                    ("4_install", "Start Installation (Run Full Installer)"),
+                    ("5_exit", "Exit to Shell")
+                ]
+            )
+            if choice == "1_cfdisk":
+                run_cfdisk_wizard(cfg, tui)
+            elif choice == "2_lvm":
+                run_lvm_wizard(cfg, tui)
+            elif choice == "3_format":
+                run_format_and_mount_wizard(cfg, tui)
+            elif choice == "4_install":
+                break
+            elif choice in ["5_exit", None]:
+                log_info("Exiting installer.")
+                sys.exit(0)
 
     # Step 4: Explicit safety confirmation
     confirm_installation(cfg, args.unattended)

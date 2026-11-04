@@ -43,7 +43,7 @@ lsblk
 
 ## Quickstart Guide
 
-Ang kailangan mo lang gawin ay i-edit ang nag-iisang file: **`config.json`**. Lahat ng options (VM, NVMe, SSD, Btrfs, LUKS, Dual Boot) ay nandun na at may malinaw na comments.
+Ang installer ay may kasamang **interactive TUI Wizard** (katulad ng hitsura ng `cfdisk`) para sa mabilis at madaling pag-setup bago mag-install:
 
 ### 1. Boot the Arch Linux Live ISO
 I-boot ang PC, laptop, o Virtual Machine gamit ang official Arch Linux ISO.
@@ -61,34 +61,19 @@ git clone https://github.com/your-username/arch-auto-install.git
 cd arch-auto-install
 ```
 
-### 4. Edit `config.json`
-Buksan at i-adjust ang mga options na gusto mo sa nag-iisang config file:
-```bash
-nano config.json
-```
-- Kung **VM (QEMU/KVM)**: `"device": "/dev/vda"`
-- Kung **SATA SSD/HDD**: `"device": "/dev/sda"`
-- Kung **NVMe SSD**: `"device": "/dev/nvme0n1"`
-- Kung **Walang Swap Partition**: `"swap": { "enabled": false }`
-- Kung **May Swap Partition**: `"swap": { "enabled": true, "size": "8G" }`
-- Kung gusto ng **LUKS encryption**: `"enabled": true` sa ilalim ng `encryption`
-- Kung gusto ng **Ext4** sa halip na Btrfs: `"type": "ext4"` sa ilalim ng `filesystem`
-
-### 5. Preview with Dry-Run
-Subukan muna nang ligtas nang walang nabubura sa disk:
-```bash
-python3 install.py --dry-run
-```
-
-### 6. Run the Installation
-Kapag handa ka na:
+### 4. Simulan ang Installer (TUI Wizard)
+Patakbuhin lang ang script:
 ```bash
 python3 install.py
 ```
-Pagkatapos ng installation, i-reboot na:
-```bash
-reboot
-```
+
+Lalabas ang **Interactive TUI Menu** kung saan magkakasunod mong magagawa ang:
+1. **Partition Disk (`cfdisk`)**: Pipili ka ng disk (NVMe, SSD, HDD, o VM `/dev/vda`) at magbubukas ang `cfdisk` para makagawa ka ng partitions.
+2. **LVM Setup (TUI Menu)**: Tatanungin ka kung gusto mo ng LVM, Volume Group name, Swap LV, at kung Magkasama o Hiwalay ang `/home`.
+3. **Filesystem & Mount Points (TUI Menu)**: Pipili ka kung Btrfs o Ext4, at iko-configure ang mga mount points.
+4. **Start Installation**: Re-review-hin ang configuration at sisimulan ang buong installation (Pacstrap, Bootloader, Users, Services)!
+
+*(Tandaan: Kung ayaw mo ng interactive TUI at gusto mong dumirekta agad mula sa `config.json`, gamitin lang ang `--unattended` o `-y`: `python3 install.py --unattended`).*
 
 ---
 
@@ -113,6 +98,9 @@ Every configurable field in `config.json` (or `config.annotated.jsonc`) is docum
 | `efi_size` | String | `"512M"`, `"1024M"`, `"1G"` | Size of the EFI System Partition (UEFI mode). |
 | `swap.enabled` | Boolean | `true` or `false` | `true` creates a dedicated swap partition. `false` completely disables swap. |
 | `swap.size` | String | `"4G"`, `"8G"`, `"16G"` | Size of the dedicated swap partition (if enabled). |
+| `lvm.enabled` | Boolean | `true` or `false` | Puts the filesystem (Ext4 or Btrfs) inside an LVM Volume Group (`/dev/mapper/vg0-root`). |
+| `separate_home.enabled`| Boolean | `true` or `false` | `false` = **MAGKASAMA (Default)** ang root at home sa iisang partition/volume. `true` = HIWALAY na partition o LV para sa `/home`. |
+| `separate_home.root_size`| String | `"50G"`, `"80G"` | Laki ng root partition/volume kung hiwalay (at ang `/home` ang kukuha ng remainder). |
 | `encryption.enabled` | Boolean | `true` or `false` | Enable LUKS2 encryption for root storage. |
 | `encryption.type` | String | `"luks2"` (recommended) or `"luks1"` | LUKS format specification. |
 | `encryption.password` | String / `null` | `null` (recommended) or `"mypassword"` | If `null`, securely prompts with masked input during install. |

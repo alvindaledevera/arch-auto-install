@@ -102,9 +102,27 @@ def _setup_clean_install(cfg: Dict[str, Any], meta: Dict[str, Any]):
         swap_part = get_partition_path(device, part_idx)
         part_idx += 1
 
-    # Root / Crypto partition takes remaining space
-    run_cmd(f"sgdisk -n {part_idx}:0:0 -t {part_idx}:8300 -c {part_idx}:'Arch Linux' {device}")
-    raw_root_part = get_partition_path(device, part_idx)
+    # Check separate home configuration
+    sep_home = storage.get("separate_home", {})
+    has_sep_home = sep_home.get("enabled", False)
+    root_size = sep_home.get("root_size", "50G")
+    is_lvm = storage.get("lvm", {}).get("enabled", False)
+
+    if is_lvm:
+        # For LVM, a single partition hosts the PV (LVM will allocate root and optional home)
+        run_cmd(f"sgdisk -n {part_idx}:0:0 -t {part_idx}:8e00 -c {part_idx}:'LVM PV' {device}")
+        raw_root_part = get_partition_path(device, part_idx)
+    elif has_sep_home:
+        # Non-LVM with separate /home partition
+        run_cmd(f"sgdisk -n {part_idx}:0:+{root_size} -t {part_idx}:8300 -c {part_idx}:'Arch Root' {device}")
+        raw_root_part = get_partition_path(device, part_idx)
+        part_idx += 1
+        run_cmd(f"sgdisk -n {part_idx}:0:0 -t {part_idx}:8300 -c {part_idx}:'Arch Home' {device}")
+        meta["home_dev"] = get_partition_path(device, part_idx)
+    else:
+        # Non-LVM combined root and home (DEFAULT)
+        run_cmd(f"sgdisk -n {part_idx}:0:0 -t {part_idx}:8300 -c {part_idx}:'Arch Linux' {device}")
+        raw_root_part = get_partition_path(device, part_idx)
 
     # Inform kernel of partition changes
     run_cmd(f"partprobe {device}")
@@ -219,44 +237,50 @@ def _handle_lvm(storage: Dict[str, Any], base_dev: str, meta: Dict[str, Any]) ->
         return base_dev
 
     vg_name = lvm_cfg.get("vg_name", "vg0")
-    volumes = lvm_cfg.get("volumes", [])
+    meta["is_lvm"] = True
+    meta["vg_name"] = vg_name
 
     log_info(f"Setting up LVM on {base_dev} with VG '{vg_name}'...")
     run_cmd(f"pvcreate -f {base_dev}")
     run_cmd(f"vgcreate -f {vg_name} {base_dev}")
 
-    root_lv_path = None
-    for vol in volumes:
-        v_name = vol["name"]
-        v_size = vol["size"]
-        if v_size in ["remainder", "100%", "100%FREE"]:
-            run_cmd(f"lvcreate -l 100%FREE -n {v_name} {vg_name}")
-        else:
-            run_cmd(f"lvcreate -L {v_size} -n {v_name} {vg_name}")
+    # 1. Swap in LVM if enabled
+    has_swap, swap_size = get_swap_config(storage)
+    if has_swap and swap_size:
+        log_info(f"Creating LVM swap volume ({swap_size})...")
+        run_cmd(f"lvcreate -L {swap_size} -n swap {vg_name}")
+        swap_lv = f"/dev/mapper/{vg_name}-swap"
+        run_cmd(f"mkswap {swap_lv}")
+        run_cmd(f"swapon {swap_lv}")
 
-        lv_path = f"/dev/mapper/{vg_name}-{v_name}"
-        if vol.get("mount") == "/" or v_name == "root":
-            root_lv_path = lv_path
+    # 2. Check if separate /home is requested
+    sep_home = storage.get("separate_home", {})
+    has_sep_home = sep_home.get("enabled", False)
+    root_size = sep_home.get("root_size", "50G")
 
-        if vol.get("fs") == "swap":
-            run_cmd(f"mkswap {lv_path}")
-            run_cmd(f"swapon {lv_path}")
+    if has_sep_home:
+        log_info(f"Creating separate LVM root volume ({root_size}) and home volume (remainder)...")
+        run_cmd(f"lvcreate -L {root_size} -n root {vg_name}")
+        run_cmd(f"lvcreate -l 100%FREE -n home {vg_name}")
+        meta["home_dev"] = f"/dev/mapper/{vg_name}-home"
+    else:
+        log_info("Creating single combined LVM root volume taking all remaining space...")
+        run_cmd(f"lvcreate -l 100%FREE -n root {vg_name}")
 
-    meta["is_lvm"] = True
-    meta["vg_name"] = vg_name
-    return root_lv_path or f"/dev/mapper/{vg_name}-root"
+    return f"/dev/mapper/{vg_name}-root"
 
 
 def _format_and_mount_root(storage: Dict[str, Any], root_dev: str, meta: Dict[str, Any]):
     fs_cfg = storage.get("filesystem", {})
     fs_type = fs_cfg.get("type", "ext4").lower()
     mount_opts = ",".join(fs_cfg.get("mount_options", ["noatime"]))
+    has_separate_home = bool(meta.get("home_dev"))
 
     if fs_type == "ext4":
         log_info(f"Formatting {root_dev} as ext4...")
         run_cmd(f"mkfs.ext4 -F -L archroot {root_dev}")
         log_info(f"Mounting root {root_dev} to /mnt with options '{mount_opts}'...")
-        run_cmd(f"mkdir -p /mnt")
+        run_cmd("mkdir -p /mnt")
         run_cmd(f"mount -o {mount_opts} {root_dev} /mnt")
 
     elif fs_type == "btrfs":
@@ -273,6 +297,10 @@ def _format_and_mount_root(storage: Dict[str, Any], root_dev: str, meta: Dict[st
             {"name": "@snapshots", "mount": "/.snapshots"},
             {"name": "@var_log", "mount": "/var/log"}
         ])
+
+        # If separate home partition/volume exists, do not create @home subvolume on root
+        if has_separate_home:
+            subvols = [sv for sv in subvols if sv.get("mount") != "/home"]
 
         for sv in subvols:
             sv_name = sv["name"]
@@ -298,4 +326,16 @@ def _format_and_mount_root(storage: Dict[str, Any], root_dev: str, meta: Dict[st
             log_info(f"Mounting subvolume '{sv_name}' to {target_dir}...")
             run_cmd(f"mkdir -p {target_dir}")
             run_cmd(f"mount -o {sub_opts} {root_dev} {target_dir}")
+
+    # If separate home partition or LV exists, format and mount it to /mnt/home
+    if has_separate_home:
+        home_dev = meta["home_dev"]
+        log_info(f"Setting up separate /home on {home_dev} ({fs_type})...")
+        if fs_type == "ext4":
+            run_cmd(f"mkfs.ext4 -F -L archhome {home_dev}")
+        elif fs_type == "btrfs":
+            run_cmd(f"mkfs.btrfs -f -L archhome {home_dev}")
+
+        run_cmd("mkdir -p /mnt/home")
+        run_cmd(f"mount -o {mount_opts} {home_dev} /mnt/home")
 

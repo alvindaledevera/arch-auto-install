@@ -6,6 +6,7 @@ import os
 import unittest
 from lib.config import load_config, validate_config, clean_jsonc, ConfigError
 from lib.disk import get_swap_config
+from lib.tui import TUI, list_disks, list_partitions
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -64,6 +65,15 @@ class TestConfigValidation(unittest.TestCase):
         storage = {"swap_size": "none"}
         has_swap, size = get_swap_config(storage)
         self.assertFalse(has_swap)
+
+    def test_tui_initialization(self):
+        tui = TUI()
+        self.assertIsNotNone(tui)
+
+    def test_list_disks(self):
+        disks = list_disks()
+        self.assertIsInstance(disks, list)
+        self.assertTrue(len(disks) > 0)
 
     def test_invalid_missing_system(self):
         with self.assertRaises(ConfigError):
