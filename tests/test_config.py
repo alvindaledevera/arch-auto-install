@@ -11,6 +11,12 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class TestConfigValidation(unittest.TestCase):
 
+    def test_default_config_json(self):
+        path = os.path.join(PROJECT_ROOT, "config.json")
+        cfg = load_config(path)
+        self.assertEqual(cfg["system"]["hostname"], "archlinux")
+        self.assertEqual(cfg["storage"]["mode"], "clean_install")
+
     def test_example_config(self):
         path = os.path.join(PROJECT_ROOT, "config.example.json")
         cfg = load_config(path)

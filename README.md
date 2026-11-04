@@ -43,50 +43,47 @@ lsblk
 
 ## Quickstart Guide
 
+Ang kailangan mo lang gawin ay i-edit ang nag-iisang file: **`config.json`**. Lahat ng options (VM, NVMe, SSD, Btrfs, LUKS, Dual Boot) ay nandun na at may malinaw na comments.
+
 ### 1. Boot the Arch Linux Live ISO
-Boot your computer or Virtual Machine from the official Arch Linux ISO.
+I-boot ang PC, laptop, o Virtual Machine gamit ang official Arch Linux ISO.
 
 ### 2. Connect to the Internet
-- **Ethernet / VM NAT**: Connected automatically via DHCP.
+- **Ethernet / VM**: Automatic via DHCP.
 - **Wi-Fi**:
   ```bash
   iwctl station wlan0 connect "Your-Wi-Fi-SSID"
   ```
 
-### 3. Clone or Download the Installer
+### 3. Clone This Repository
 ```bash
 git clone https://github.com/your-username/arch-auto-install.git
 cd arch-auto-install
 ```
 
-### 4. Choose a Configuration
-You can copy the heavily commented reference file or use a preset profile:
-
+### 4. Edit `config.json`
+Buksan at i-adjust ang mga options na gusto mo sa nag-iisang config file:
 ```bash
-# Option A: Self-documenting config with comments
-cp config.annotated.jsonc config.json
-nano config.json
-
-# Option B: Preset for Virtual Machines (QEMU/KVM with /dev/vda)
-cp profiles/vm-qemu.json config.json
-nano config.json
-
-# Option C: Preset for Physical PC (Btrfs + LUKS encryption)
-cp profiles/btrfs-luks.json config.json
 nano config.json
 ```
+- Kung **VM (QEMU/KVM)**: palitan ang `"device": "/dev/vda"`
+- Kung **SATA SSD/HDD**: palitan ang `"device": "/dev/sda"`
+- Kung **NVMe SSD**: iwanan sa `"device": "/dev/nvme0n1"`
+- Kung gusto ng **LUKS encryption**: palitan ang `"enabled": true` sa ilalim ng `encryption`
+- Kung gusto ng **Ext4** sa halip na Btrfs: palitan ang `"type": "ext4"` sa ilalim ng `filesystem`
 
 ### 5. Preview with Dry-Run
-Always test first! This prints every command without making any changes to your drive:
+Subukan muna nang ligtas nang walang nabubura sa disk:
 ```bash
 python3 install.py --dry-run
 ```
 
 ### 6. Run the Installation
+Kapag handa ka na:
 ```bash
 python3 install.py
 ```
-When complete, unmount and reboot into your new Arch Linux system:
+Pagkatapos ng installation, i-reboot na:
 ```bash
 reboot
 ```
