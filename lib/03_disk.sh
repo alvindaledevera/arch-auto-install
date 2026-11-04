@@ -58,6 +58,45 @@ disk_run_cfdisk() {
 
 disk_setup_luks() {
     local parts_args
+    read -r -a parts_args <<<(get_parts_menu_items)
+
+    if [ ${#parts_args[@]} -eq 0 ]; then
+        msgbox "No Partitions" "Please partition your disk using cfdisk first."
+        return
+    fi
+
+    local target_part
+    target_part=$(menu_dialog "LUKS Encryption" "Select the partition you want to encrypt:" "${parts_args[@]}")
+    [ -z "$target_part" ] && return
+
+    if ! yesno "Confirm LUKS Encryption" "Are you sure you want to encrypt $target_part with LUKS2?\n\nWARNING: All existing data on $target_part will be destroyed!"; then
+        return
+    fi
+
+    local pass1 pass2
+    while true; do
+        pass1=$(passwordbox "LUKS Passphrase" "Enter encryption passphrase for $target_part:")
+        [ -z "$pass1" ] && { msgbox "Error" "Passphrase cannot be empty."; continue; }
+        pass2=$(passwordbox "Confirm Passphrase" "Re-enter encryption passphrase:")
+        if [ "$pass1" == "$pass2" ]; then
+            break
+        fi
+        msgbox "Mismatch" "Passphrases do not match. Please try again."
+    done
+
+    local map_name="${LUKS_NAME:-cryptroot}"
+    info "Formatting $target_part with LUKS2..."
+    echo -n "$pass1" | cryptsetup luksFormat --type luks2 --batch-mode "$target_part" -
+    info "Opening LUKS container as /dev/mapper/$map_name..."
+    echo -n "$pass1" | cryptsetup open "$target_part" "$map_name" -
+
+    IS_LUKS=true
+    LUKS_MAPPED_DEV="/dev/mapper/$map_name"
+    ROOT_DEV="$LUKS_MAPPED_DEV"
+    success "LUKS encrypted container opened at $LUKS_MAPPED_DEV!"
+    msgbox "LUKS Complete" "LUKS container successfully created and opened at:\n$LUKS_MAPPED_DEV"
+}
+    local parts_args
     read -r -a parts_args < <(get_parts_menu_items)
 
     if [ ${#parts_args[@]} -eq 0 ]; then
@@ -137,7 +176,7 @@ disk_setup_lvm() {
         "separate" "Hiwalay na Logical Volume para sa /home")
 
     if [ "$layout" == "separate" ]; then
-        local r_size="${ROOT_SIZE:-50G}"
+        local r_size="${ROOT_SIZE}"
         r_size=$(inputbox "Root LV Size" "Enter size for root LV (home takes remainder):" "$r_size")
         info "Creating separate root LV ($r_size) and home LV (100%FREE)..."
         lvcreate -L "$r_size" -n root "$vg"
@@ -252,6 +291,28 @@ disk_format_and_mount() {
 }
 
 disk_menu() {
+    while true; do
+        local choice
+        choice=$(menu_dialog "Disk Setup Menu" "Choose a disk preparation step:" \
+            "1" "Partition Disk (cfdisk)" \
+            "2" "Setup LUKS Disk Encryption (Optional)" \
+            "3" "Setup LVM (Optional)" \
+            "4" "Format & Mount Filesystems (/mnt)" \
+            "5" "Open Encrypted LUKS Partition" \
+            "6" "View Current Disk & Mount Layout (lsblk)" \
+            "0" "Back to Main Menu")
+
+        case "$choice" in
+            1) disk_run_cfdisk ;;
+            2) disk_setup_luks ;;
+            3) disk_setup_lvm ;;
+            4) disk_format_and_mount ;;
+            5) open_luks_partition ;;
+            6) show_lsblk ;;
+            0|"") break ;;
+        esac
+    done
+}
     while true; do
         local choice
         choice=$(menu_dialog "Disk Setup Menu" "Choose a disk preparation step:" \

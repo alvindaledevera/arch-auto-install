@@ -23,6 +23,31 @@ preinstall_connect_wifi() {
 
 preinstall_check_internet() {
     step_header "Testing Internet Connectivity"
+    local attempts=3
+    local success_conn=false
+    for ((i=1;i<=attempts;i++)); do
+        info "Attempt $i of $attempts: pinging archlinux.org..."
+        if ping -c 2 -W 3 archlinux.org >/dev/null 2>&1; then
+            success_conn=true
+            break
+        fi
+        sleep 1
+done
+    if ! $success_conn; then
+        info "Falling back to 1.1.1.1..."
+        if ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1; then
+            success_conn=true
+        fi
+    fi
+    if $success_conn; then
+        success "Internet connection is active!"
+        msgbox "Internet Status" "Internet connection is ACTIVE and working!"
+    else
+        error "No internet connection detected!"
+        msgbox "Internet Status" "ERROR: No internet connection! Please connect to Wi-Fi or plug in Ethernet."
+    fi
+}
+    step_header "Testing Internet Connectivity"
     info "Pinging archlinux.org..."
     if ping -c 2 -W 3 archlinux.org >/dev/null 2>&1 || ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1; then
         success "Internet connection is active!"
