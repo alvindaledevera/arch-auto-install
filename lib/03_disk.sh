@@ -133,21 +133,36 @@ disk_setup_lvm() {
     # Combined vs Separate /home
     local layout
     layout=$(menu_dialog "Root & Home Layout" "Choose allocation for root (/) and /home in LVM:" \
-        "combined" "Magkasama sa iisang volume (DEFAULT - Recommended)" \
+        "combined" "Magkasama sa iisang volume" \
         "separate" "Hiwalay na Logical Volume para sa /home")
 
+    # 1. Tanungin ang Root LV Size para sa parehong layout
+    local default_r_size="${ROOT_SIZE:-40G}"
+    local r_size
+    r_size=$(inputbox "Root LV Size" "Enter size for root LV (e.g., 40G):" "$default_r_size")
+    [ -z "$r_size" ] && r_size="$default_r_size"
+
     if [ "$layout" == "separate" ]; then
-        local r_size="${ROOT_SIZE}"
-        r_size=$(inputbox "Root LV Size" "Enter size for root LV (home takes remainder):" "$r_size")
-        info "Creating separate root LV ($r_size) and home LV (100%FREE)..."
+        # 2. Tanungin ang Home LV Size kung separate, na may 100%FREE bilang default/opsyon
+        local home_sz
+        home_sz=$(inputbox "Home LV Size" "Enter size for /home LV (e.g., 100G or type 100%FREE):" "100%FREE")
+        [ -z "$home_sz" ] && home_sz="100%FREE"
+
+        info "Creating separate root LV ($r_size) and home LV ($home_sz)..."
         lvcreate -L "$r_size" -n root "$vg"
-        lvcreate -l 100%FREE -n home "$vg"
+        
+        if [[ "$home_sz" == *"%"* ]]; then
+            lvcreate -l "$home_sz" -n home "$vg"
+        else
+            lvcreate -L "$home_sz" -n home "$vg"
+        fi
+
         ROOT_DEV="/dev/mapper/$vg-root"
         HOME_DEV="/dev/mapper/$vg-home"
         SEPARATE_HOME=true
     else
-        info "Creating combined root LV taking 100% of remaining space..."
-        lvcreate -l 100%FREE -n root "$vg"
+        info "Creating combined root LV with size ($r_size)..."
+        lvcreate -L "$r_size" -n root "$vg"
         ROOT_DEV="/dev/mapper/$vg-root"
         HOME_DEV=""
         SEPARATE_HOME=false
