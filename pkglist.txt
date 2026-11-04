@@ -1,0 +1,30 @@
+## BASE
+base
+linux
+linux-firmware
+linux-headers
+
+## Essentials
+btrfs-progs
+lvm2
+cryptsetup
+base-devel
+timeshift
+#sudo
+#vim
+nano
+git
+#curl
+#wget
+
+## Networking
+networkmanager
+#openssh
+
+## Utilities & Tools
+htop
+#neovim
+#tmux
+#docker
+#docker-compose
+
