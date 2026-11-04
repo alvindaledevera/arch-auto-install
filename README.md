@@ -66,11 +66,13 @@ Buksan at i-adjust ang mga options na gusto mo sa nag-iisang config file:
 ```bash
 nano config.json
 ```
-- Kung **VM (QEMU/KVM)**: palitan ang `"device": "/dev/vda"`
-- Kung **SATA SSD/HDD**: palitan ang `"device": "/dev/sda"`
-- Kung **NVMe SSD**: iwanan sa `"device": "/dev/nvme0n1"`
-- Kung gusto ng **LUKS encryption**: palitan ang `"enabled": true` sa ilalim ng `encryption`
-- Kung gusto ng **Ext4** sa halip na Btrfs: palitan ang `"type": "ext4"` sa ilalim ng `filesystem`
+- Kung **VM (QEMU/KVM)**: `"device": "/dev/vda"`
+- Kung **SATA SSD/HDD**: `"device": "/dev/sda"`
+- Kung **NVMe SSD**: `"device": "/dev/nvme0n1"`
+- Kung **Walang Swap Partition**: `"swap": { "enabled": false }`
+- Kung **May Swap Partition**: `"swap": { "enabled": true, "size": "8G" }`
+- Kung gusto ng **LUKS encryption**: `"enabled": true` sa ilalim ng `encryption`
+- Kung gusto ng **Ext4** sa halip na Btrfs: `"type": "ext4"` sa ilalim ng `filesystem`
 
 ### 5. Preview with Dry-Run
 Subukan muna nang ligtas nang walang nabubura sa disk:
@@ -87,18 +89,6 @@ Pagkatapos ng installation, i-reboot na:
 ```bash
 reboot
 ```
-
----
-
-## Pre-Made Profiles
-
-| Profile | Command Shortcut | Description |
-| :--- | :--- | :--- |
-| **QEMU / KVM VM** | `python3 install.py --profile vm-qemu` | Optimized for VMs using `/dev/vda`, includes `qemu-guest-agent`, ext4. |
-| **Btrfs + LUKS2** | `python3 install.py --profile btrfs-luks` | LUKS2 encryption, Btrfs subvolumes (`@`, `@home`, `@snapshots`, `@var_log`), zstd. |
-| **LVM + LUKS2** | `python3 install.py --profile lvm-luks` | LUKS2 + LVM (`root`, `swap`, `home`), Ext4, GRUB. |
-| **Dual Boot** | `python3 install.py --profile dual-boot` | Preserves existing Windows EFI partition, formats only Arch root, enables `os-prober`. |
-| **Simple Ext4** | `python3 install.py --profile simple-ext4` | Clean install on `/dev/sda` with Ext4 and systemd-boot (unencrypted). |
 
 ---
 
@@ -121,7 +111,8 @@ Every configurable field in `config.json` (or `config.annotated.jsonc`) is docum
 | `device` | String | `"/dev/nvme0n1"`, `"/dev/sda"`, `"/dev/vda"` | Target storage disk (used in `clean_install` mode). |
 | `wipe` | Boolean | `true` or `false` | Confirmation safeguard to wipe partition tables. |
 | `efi_size` | String | `"512M"`, `"1024M"`, `"1G"` | Size of the EFI System Partition (UEFI mode). |
-| `swap_size` | String | `"4G"`, `"8G"`, `"none"` | Size of the dedicated swap partition. Set to `"none"` to skip. |
+| `swap.enabled` | Boolean | `true` or `false` | `true` creates a dedicated swap partition. `false` completely disables swap. |
+| `swap.size` | String | `"4G"`, `"8G"`, `"16G"` | Size of the dedicated swap partition (if enabled). |
 | `encryption.enabled` | Boolean | `true` or `false` | Enable LUKS2 encryption for root storage. |
 | `encryption.type` | String | `"luks2"` (recommended) or `"luks1"` | LUKS format specification. |
 | `encryption.password` | String / `null` | `null` (recommended) or `"mypassword"` | If `null`, securely prompts with masked input during install. |

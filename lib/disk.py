@@ -21,6 +21,29 @@ def is_uefi() -> bool:
     return os.path.exists("/sys/firmware/efi/efivars")
 
 
+def get_swap_config(storage: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Determine if swap partition should be created and its size.
+    Supports:
+      "swap": { "enabled": true/false, "size": "8G" }
+    or:
+      "swap_size": "8G" / "none"
+    """
+    if "swap" in storage:
+        s = storage["swap"]
+        if isinstance(s, dict):
+            enabled = s.get("enabled", True)
+            size = s.get("size", "8G")
+            return (bool(enabled), size if enabled else "")
+        elif isinstance(s, bool):
+            return (s, "8G" if s else "")
+
+    swap_size = storage.get("swap_size")
+    if swap_size is None or str(swap_size).lower() in ["none", "false", "0", "no"]:
+        return (False, "")
+    return (True, str(swap_size))
+
+
 def setup_disk(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main disk setup entrypoint.
@@ -53,8 +76,9 @@ def _setup_clean_install(cfg: Dict[str, Any], meta: Dict[str, Any]):
     storage = cfg["storage"]
     device = storage["device"]
     uefi = meta["is_uefi"]
-    swap_size = storage.get("swap_size", "8G")
-    has_swap_part = bool(swap_size and swap_size.lower() != "none" and not storage.get("lvm", {}).get("enabled"))
+    has_swap_part, swap_size = get_swap_config(storage)
+    if storage.get("lvm", {}).get("enabled"):
+        has_swap_part = False
 
     log_info(f"Wiping and partitioning {device} (Boot mode: {'UEFI' if uefi else 'BIOS/Legacy'})...")
     run_cmd(f"wipefs -af {device}")
@@ -136,11 +160,14 @@ def _setup_dual_boot(cfg: Dict[str, Any], meta: Dict[str, Any]):
 
     # Swap
     if swap_info and swap_info.get("device"):
-        s_dev = swap_info["device"]
-        if swap_info.get("format", False):
-            log_info(f"Formatting and enabling swap on {s_dev}...")
-            run_cmd(f"mkswap {s_dev}")
-        run_cmd(f"swapon {s_dev}")
+        if swap_info.get("enabled", True):
+            s_dev = swap_info["device"]
+            if swap_info.get("format", False):
+                log_info(f"Formatting and enabling swap on {s_dev}...")
+                run_cmd(f"mkswap {s_dev}")
+            run_cmd(f"swapon {s_dev}")
+        else:
+            log_info("Swap partition is disabled in dual-boot config. Skipping.")
 
     # Encryption
     target_root = _handle_encryption(storage, raw_root_part, meta)

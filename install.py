@@ -15,7 +15,7 @@ from lib.executor import (
     BOLD, GREEN, RED, YELLOW, CYAN, RESET
 )
 from lib.config import load_config, resolve_passwords, ConfigError
-from lib.disk import setup_disk
+from lib.disk import setup_disk, get_swap_config
 from lib.pacman import configure_pacman, update_mirrors, install_base_packages
 from lib.system import generate_fstab, configure_system
 from lib.users import configure_users
@@ -49,16 +49,21 @@ def confirm_installation(cfg: Dict[str, Any], unattended: bool):
 
     if mode == "clean_install":
         dev = storage.get("device")
+        has_swap, swap_size = get_swap_config(storage)
         print(f" Target Disk:     {dev} {RED}(ENTIRE DISK WILL BE WIPED!){RESET}")
         print(f" EFI Size:        {storage.get('efi_size')}")
+        print(f" Swap:            {swap_size if has_swap else 'Disabled (No swap partition)'}")
         print(f" Filesystem:      {storage.get('filesystem', {}).get('type')}")
         print(f" Encryption:      {storage.get('encryption', {}).get('enabled')}")
         print(f" LVM:             {storage.get('lvm', {}).get('enabled')}")
     else:
         parts = storage.get("partitions", {})
+        swap_part = parts.get("swap", {})
+        swap_enabled = swap_part.get("enabled", True) if swap_part else False
         print(f" Target Mode:     Dual Boot / Existing Partitions")
         print(f" EFI Partition:   {parts.get('efi', {}).get('device')} (Format: {parts.get('efi', {}).get('format', False)})")
         print(f" Root Partition:  {parts.get('root', {}).get('device')} (Format: {parts.get('root', {}).get('format', True)})")
+        print(f" Swap Partition:  {swap_part.get('device', 'None') if swap_enabled else 'Disabled'}")
 
     print(f" Hostname:        {cfg['system']['hostname']}")
     print(f" Bootloader:      {cfg.get('bootloader', {}).get('type')}")
