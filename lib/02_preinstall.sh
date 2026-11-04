@@ -21,42 +21,6 @@ preinstall_connect_wifi() {
     iwctl
 }
 
-preinstall_check_internet() {
-    step_header "Testing Internet Connectivity"
-    local attempts=3
-    local success_conn=false
-    for ((i=1;i<=attempts;i++)); do
-        info "Attempt $i of $attempts: pinging archlinux.org..."
-        if ping -c 2 -W 3 archlinux.org >/dev/null 2>&1; then
-            success_conn=true
-            break
-        fi
-        sleep 1
-done
-    if ! $success_conn; then
-        info "Falling back to 1.1.1.1..."
-        if ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1; then
-            success_conn=true
-        fi
-    fi
-    if $success_conn; then
-        success "Internet connection is active!"
-        msgbox "Internet Status" "Internet connection is ACTIVE and working!"
-    else
-        error "No internet connection detected!"
-        msgbox "Internet Status" "ERROR: No internet connection! Please connect to Wi-Fi or plug in Ethernet."
-    fi
-}
-    step_header "Testing Internet Connectivity"
-    info "Pinging archlinux.org..."
-    if ping -c 2 -W 3 archlinux.org >/dev/null 2>&1 || ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1; then
-        success "Internet connection is active!"
-        msgbox "Internet Status" "Internet connection is ACTIVE and working!"
-    else
-        error "No internet connection detected!"
-        msgbox "Internet Status" "ERROR: No internet connection! Please connect to Wi-Fi or plug in Ethernet."
-    fi
-}
 
 preinstall_setup_time() {
     step_header "Configuring Timezone & NTP"
@@ -107,19 +71,16 @@ preinstall_menu() {
         local choice
         choice=$(menu_dialog "Pre-Installation Menu" "Choose a pre-installation action:" \
             "1" "Connect to Wi-Fi (iwctl)" \
-            "2" "Test Internet Connection (ping)" \
-            "3" "Set Timezone & Enable NTP (timedatectl)" \
-            "4" "Configure Pacman & Fast Mirrors (ParallelDownloads)" \
-            "5" "Run All Pre-Install Tasks in Sequence" \
+            "2" "Set Timezone & Enable NTP (timedatectl)" \
+            "3" "Configure Pacman & Fast Mirrors (ParallelDownloads)" \
+            "4" "Run All Pre-Install Tasks in Sequence" \
             "0" "Back to Main Menu")
 
         case "$choice" in
             1) preinstall_connect_wifi ;;
-            2) preinstall_check_internet ;;
-            3) preinstall_setup_time ;;
-            4) preinstall_configure_pacman ;;
-            5)
-                preinstall_check_internet
+            2) preinstall_setup_time ;;
+            3) preinstall_configure_pacman ;;
+            4)
                 preinstall_setup_time
                 preinstall_configure_pacman
                 ;;
