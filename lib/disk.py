@@ -14,6 +14,13 @@ def get_partition_path(device: str, part_num: int) -> str:
     return f"{device}{part_num}"
 
 
+def is_uefi() -> bool:
+    """Check if system is booted in UEFI mode."""
+    if is_dry_run():
+        return True
+    return os.path.exists("/sys/firmware/efi/efivars")
+
+
 def setup_disk(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main disk setup entrypoint.
@@ -21,9 +28,11 @@ def setup_disk(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """
     storage = cfg["storage"]
     mode = storage.get("mode", "clean_install")
+    uefi_mode = is_uefi()
 
     meta = {
         "mode": mode,
+        "is_uefi": uefi_mode,
         "is_luks": False,
         "luks_name": "",
         "root_dev": "",
@@ -43,19 +52,26 @@ def setup_disk(cfg: Dict[str, Any]) -> Dict[str, Any]:
 def _setup_clean_install(cfg: Dict[str, Any], meta: Dict[str, Any]):
     storage = cfg["storage"]
     device = storage["device"]
-    efi_size = storage.get("efi_size", "1024M")
+    uefi = meta["is_uefi"]
     swap_size = storage.get("swap_size", "8G")
     has_swap_part = bool(swap_size and swap_size.lower() != "none" and not storage.get("lvm", {}).get("enabled"))
 
-    log_info(f"Wiping and partitioning {device}...")
+    log_info(f"Wiping and partitioning {device} (Boot mode: {'UEFI' if uefi else 'BIOS/Legacy'})...")
     run_cmd(f"wipefs -af {device}")
     run_cmd(f"sgdisk -Z {device}")
 
-    # Partition 1: EFI System
-    run_cmd(f"sgdisk -n 1:0:+{efi_size} -t 1:ef00 -c 1:'EFI System Partition' {device}")
-    meta["efi_dev"] = get_partition_path(device, 1)
+    part_idx = 1
+    if uefi:
+        # Partition 1: EFI System Partition (type ef00)
+        efi_size = storage.get("efi_size", "1024M")
+        run_cmd(f"sgdisk -n 1:0:+{efi_size} -t 1:ef00 -c 1:'EFI System Partition' {device}")
+        meta["efi_dev"] = get_partition_path(device, 1)
+        part_idx += 1
+    else:
+        # Partition 1: BIOS Boot Partition for GRUB on GPT (type ef02, 1MB)
+        run_cmd(f"sgdisk -n 1:0:+1M -t 1:ef02 -c 1:'BIOS Boot Partition' {device}")
+        part_idx += 1
 
-    part_idx = 2
     swap_part = None
     if has_swap_part:
         run_cmd(f"sgdisk -n {part_idx}:0:+{swap_size} -t {part_idx}:8200 -c {part_idx}:'Linux Swap' {device}")
@@ -69,9 +85,10 @@ def _setup_clean_install(cfg: Dict[str, Any], meta: Dict[str, Any]):
     # Inform kernel of partition changes
     run_cmd(f"partprobe {device}")
 
-    # Format EFI
-    log_info(f"Formatting EFI partition {meta['efi_dev']} as FAT32...")
-    run_cmd(f"mkfs.fat -F32 -n EFI {meta['efi_dev']}")
+    # Format EFI if in UEFI mode
+    if uefi and meta["efi_dev"]:
+        log_info(f"Formatting EFI partition {meta['efi_dev']} as FAT32...")
+        run_cmd(f"mkfs.fat -F32 -n EFI {meta['efi_dev']}")
 
     # Setup Swap
     if swap_part:
@@ -90,10 +107,11 @@ def _setup_clean_install(cfg: Dict[str, Any], meta: Dict[str, Any]):
     # Format & Mount Root
     _format_and_mount_root(storage, target_root, meta)
 
-    # Mount EFI to /mnt/boot
-    log_info(f"Mounting EFI partition {meta['efi_dev']} to /mnt/boot...")
-    run_cmd("mkdir -p /mnt/boot")
-    run_cmd(f"mount {meta['efi_dev']} /mnt/boot")
+    # Mount EFI to /mnt/boot if in UEFI mode
+    if uefi and meta["efi_dev"]:
+        log_info(f"Mounting EFI partition {meta['efi_dev']} to /mnt/boot...")
+        run_cmd("mkdir -p /mnt/boot")
+        run_cmd(f"mount {meta['efi_dev']} /mnt/boot")
 
 
 def _setup_dual_boot(cfg: Dict[str, Any], meta: Dict[str, Any]):

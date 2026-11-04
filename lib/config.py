@@ -5,6 +5,7 @@ Configuration loader, schema validator, and interactive credential resolver.
 import json
 import getpass
 import os
+import re
 import sys
 from typing import Dict, Any
 from .executor import log_info, log_warn, log_error, is_dry_run
@@ -15,16 +16,37 @@ class ConfigError(Exception):
     pass
 
 
+def clean_jsonc(text: str) -> str:
+    """
+    Strips single-line (//, #) and multi-line (/* */) comments,
+    and removes trailing commas so users can comment JSON files freely.
+    """
+    pattern = r'(\"(?:\\.|[^\"\x5c])*\")|(/\*.*?\*/|//[^\r\n]*$|#[^\r\n]*$)'
+
+    def replacer(match):
+        if match.group(2) is not None:
+            return ""
+        return match.group(1)
+
+    # 1. Strip comments
+    no_comments = re.sub(pattern, replacer, text, flags=re.MULTILINE | re.DOTALL)
+    # 2. Strip trailing commas before closing braces/brackets
+    cleaned = re.sub(r',\s*([\]}])', r'\1', no_comments)
+    return cleaned
+
+
 def load_config(config_path: str) -> Dict[str, Any]:
-    """Load JSON configuration from a file path."""
+    """Load JSON/JSONC configuration from a file path."""
     if not os.path.exists(config_path):
         raise ConfigError(f"Configuration file not found: {config_path}")
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
+            raw_text = f.read()
+        cleaned_text = clean_jsonc(raw_text)
+        config = json.loads(cleaned_text)
     except json.JSONDecodeError as e:
-        raise ConfigError(f"Invalid JSON syntax in {config_path}: {e}")
+        raise ConfigError(f"Invalid JSON/JSONC syntax in {config_path}: {e}")
 
     validate_config(config)
     return config

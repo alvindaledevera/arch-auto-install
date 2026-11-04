@@ -17,6 +17,18 @@ class TestConfigValidation(unittest.TestCase):
         self.assertEqual(cfg["system"]["hostname"], "archlinux")
         self.assertEqual(cfg["storage"]["mode"], "clean_install")
 
+    def test_annotated_jsonc_config(self):
+        path = os.path.join(PROJECT_ROOT, "config.annotated.jsonc")
+        cfg = load_config(path)
+        self.assertEqual(cfg["system"]["hostname"], "archlinux")
+        self.assertEqual(cfg["storage"]["filesystem"]["type"], "btrfs")
+
+    def test_vm_qemu_profile(self):
+        path = os.path.join(PROJECT_ROOT, "profiles", "vm-qemu.json")
+        cfg = load_config(path)
+        self.assertEqual(cfg["storage"]["device"], "/dev/vda")
+        self.assertEqual(cfg["storage"]["mode"], "clean_install")
+
     def test_btrfs_luks_profile(self):
         path = os.path.join(PROJECT_ROOT, "profiles", "btrfs-luks.json")
         cfg = load_config(path)

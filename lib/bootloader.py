@@ -41,6 +41,12 @@ def install_bootloader(cfg: Dict[str, Any], meta: Dict[str, Any]):
 
     log_info(f"Target Kernel Command Line: {cmdline_str}")
 
+    is_uefi = meta.get("is_uefi", True)
+    if not is_uefi:
+        if bl_type == "systemd-boot":
+            log_warn("systemd-boot requires UEFI, but system is in BIOS/Legacy mode. Auto-switching to GRUB.")
+            bl_type = "grub"
+
     if bl_type == "systemd-boot":
         _install_systemd_boot(cfg, meta, cmdline_str)
     elif bl_type == "grub":
@@ -74,8 +80,16 @@ options {cmdline}
 
 
 def _install_grub(cfg: Dict[str, Any], meta: Dict[str, Any], cmdline: str):
-    log_info("Installing GRUB for UEFI...")
-    run_cmd("grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB", chroot=True)
+    is_uefi = meta.get("is_uefi", True)
+    storage = cfg.get("storage", {})
+    device = storage.get("device", "/dev/sda")
+
+    if is_uefi:
+        log_info("Installing GRUB for UEFI...")
+        run_cmd("grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB", chroot=True)
+    else:
+        log_info(f"Installing GRUB for BIOS (MBR/GPT) on {device}...")
+        run_cmd(f"grub-install --target=i386-pc {device}", chroot=True)
 
     # Configure GRUB cmdline in /etc/default/grub
     run_cmd(f"sed -i 's|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"{cmdline}\"|' /mnt/etc/default/grub")

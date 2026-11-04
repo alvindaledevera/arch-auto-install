@@ -69,6 +69,27 @@ def update_mirrors(cfg: Dict[str, Any]):
     run_cmd(cmd)
 
 
+def detect_vm_guest_pkgs() -> List[str]:
+    """Detect if running inside a VM and return recommended guest packages."""
+    if is_dry_run():
+        return []
+    try:
+        proc = run_cmd("systemd-detect-virt", capture_output=True, check=False)
+        virt = proc.stdout.strip().lower()
+        if virt in ["qemu", "kvm", "bochs"]:
+            log_info(f"Detected Virtual Machine ({virt}), adding 'qemu-guest-agent'")
+            return ["qemu-guest-agent"]
+        elif virt in ["oracle", "vbox"]:
+            log_info(f"Detected VirtualBox, adding 'virtualbox-guest-utils'")
+            return ["virtualbox-guest-utils"]
+        elif virt in ["vmware"]:
+            log_info(f"Detected VMware, adding 'open-vm-tools'")
+            return ["open-vm-tools"]
+    except Exception:
+        pass
+    return []
+
+
 def install_base_packages(cfg: Dict[str, Any], meta: Dict[str, Any]):
     """Assemble package list and invoke pacstrap."""
     pkg_cfg = cfg.get("packages", {})
@@ -84,6 +105,11 @@ def install_base_packages(cfg: Dict[str, Any], meta: Dict[str, Any]):
     elif ucode in ["intel-ucode", "amd-ucode"]:
         packages.append(ucode)
         meta["ucode_pkg"] = ucode
+
+    # VM Guest Utilities
+    vm_pkgs = detect_vm_guest_pkgs()
+    packages.extend(vm_pkgs)
+    meta["vm_pkgs"] = vm_pkgs
 
     # Filesystem & storage tools
     fs_type = meta.get("fs_type", "ext4")
